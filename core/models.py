@@ -28,6 +28,15 @@ class OrganizationType(IntegerChoices):
     CLASS = 2
     CLUB = 3
 
+class LowercaseEmailField(EmailField):
+    def to_python(self, value):
+        value = super().to_python(value)
+        if isinstance(value, str):
+            return value.lower()
+        return value
+
+
+
 class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
         email = self.normalize_email(email)
@@ -55,12 +64,12 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["grad_year"]
+    REQUIRED_FIELDS = []
     objects = UserManager()
 
     username = None
-    email = EmailField(_("email address"), unique=True)
-    grad_year = IntegerField(null=True)
+    email = LowercaseEmailField(_("email address"), unique=True)
+    grad_year = IntegerField(null=True, blank=True)
     organizations = ManyToManyField("Organization", through="Membership", related_name="users")
     picture_url = URLField(
         default="https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"
@@ -78,10 +87,12 @@ class Organization(Model):
                 ),
             )
         ]
-    name = CharField(max_length=200)
     type = IntegerField(choices=OrganizationType.choices)
     advisors = ManyToManyField(USER_MODEL, related_name="advisor_organizations", blank=True)
     admins = ManyToManyField(USER_MODEL, related_name="admin_organizations", blank=True)
+
+    name = CharField(max_length=200)
+    description = TextField(null=True, blank=True)
 
     required = BooleanField(default=False)
     required_grad_year = IntegerField(null=True, blank=True)
@@ -95,7 +106,18 @@ class Organization(Model):
         return self.name
 
 
+class OrganizationLink(Model):
+    organization = ForeignKey(Organization, on_delete=CASCADE, related_name="links")
+    title = CharField(max_length=200)
+    url = URLField()
+
 class Membership(Model):
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                name="%(app_label)s_%(class)s_user_organization", fields=("user", "organization")
+            )
+        ]
     user = ForeignKey(User, on_delete=CASCADE, related_name="memberships")
     organization = ForeignKey(Organization, on_delete=CASCADE, related_name="memberships")
 
@@ -115,7 +137,9 @@ class Post(Model):
 
 @receiver(post_save, sender=USER_MODEL)
 def add_required_orgs(*, sender, instance=None, **kwargs):
-    orgs = Organization.objects.filter(Q(required=True) | Q(required_grad_year=instance.grad_year))
+    q = Q(required=True) | Q(required_grad_year__isnull=False, required_grad_year=instance.grad_year)
+    orgs = Organization.objects.filter(q)
+    instance.organizations.add(*orgs)
     remove_orgs = Organization.objects.exclude(required_grad_year__isnull=True)
     remove_orgs = remove_orgs.exclude(required_grad_year=instance.grad_year)
     instance.organizations.add(*orgs)

@@ -44,19 +44,41 @@ class UserSerializer(serializers.ModelSerializer):
 
     memberships = NestedMembershipSerializer(many=True, read_only=True)
 
+class OrganizationLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.OrganizationLink
+        fields = ("title", "url")
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Organization
-        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "link", "ical_links")
+        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "link", "ical_links", "description", "links")
 
     advisors = NestedUserSerializer(many=True, read_only=True)
     admins = NestedUserSerializer(many=True, read_only=True)
+    links = OrganizationLinkSerializer(many=True, read_only=True)
+
+class MembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Membership
+        fields = ("organization", "points")
+
+    organization = OrganizationSerializer(read_only=True)
+    points = serializers.IntegerField(read_only=True)
+
+
+class CreateMembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Membership
+        fields = ("organization", "points")
+
+    points = serializers.IntegerField(read_only=True)
+
 
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
 
         model = models.Post
-        fields = ("id", "url", "organization", "title", "date", "content", "published", "polls")
+        fields = ("id", "url", "organization", "title", "date", "content", "published")
 
     organization = NestedOrganizationSerializer(read_only=True)

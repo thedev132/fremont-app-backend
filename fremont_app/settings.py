@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "social_django",
-    'rules',
     'rest_framework',
     "corsheaders",
     "djoser",
@@ -154,7 +153,7 @@ SOCIAL_AUTH_USER_MODEL = AUTH_USER_MODEL
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
-    "core.schoology.SchoologyOAuth",
+    "core.auth.SchoologyOAuth",
     # "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
