@@ -1,14 +1,19 @@
 from django.contrib.postgres.fields import ArrayField
-from django.conf import settings
-from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator
-from django.db import models
+from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from rest_framework.authtoken.models import Token
+from django.conf import settings
+from django.contrib.auth.base_user import BaseUserManager
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator
+from django.db.models import *
+from django.utils.translation import gettext as _
+
+USER_MODEL = settings.AUTH_USER_MODEL
 
 
-class DayOfWeek(models.IntegerChoices):
+class DayOfWeek(IntegerChoices):
     MONDAY = 0
     TUESDAY = 1
     WEDNESDAY = 2
@@ -18,47 +23,97 @@ class DayOfWeek(models.IntegerChoices):
     SUNDAY = 6
 
 
-class OrganizationType(models.IntegerChoices):
+class OrganizationType(IntegerChoices):
     GLOBAL = 1
     CLASS = 2
     CLUB = 3
 
+class UserManager(BaseUserManager):
+    def _create_user(self, email, password, **extra_fields):
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.password = make_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email=None, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra_fields)
+
+    def create_superuser(self, email=None, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+
+        return self._create_user(email, password, **extra_fields)
+
+
 class User(AbstractUser):
-    organizations = models.ManyToManyField("Organization", through="Membership")
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["grad_year"]
+    objects = UserManager()
 
+    username = None
+    email = EmailField(_("email address"), unique=True)
+    grad_year = IntegerField()
+    organizations = ManyToManyField("Organization", through="Membership", related_name="users")
 
-class Organization(models.Model):
-    name = models.CharField(max_length=200)
-    type = models.IntegerField(choices=OrganizationType.choices)
-    advisors = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="advisor_organization_set")
-    admins = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="admin_organization_set")
+class Organization(Model):
+    name = CharField(max_length=200)
+    type = IntegerField(choices=OrganizationType.choices)
+    advisors = ManyToManyField(USER_MODEL, related_name="advisor_organizations", blank=True)
+    admins = ManyToManyField(USER_MODEL, related_name="admin_organizations", blank=True)
 
-    day = models.IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
-    time = models.TimeField(null=True, blank=True)
-    link = models.URLField(null=True, blank=True)
+    required = BooleanField(default=False)
+    required_grad_year = IntegerField(null=True, blank=True)
+
+    day = IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
+    time = TimeField(null=True, blank=True)
+    link = URLField(null=True, blank=True)
 
     def __str__(self):
         return self.name
 
 
-class Membership(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+class Membership(Model):
+    user = ForeignKey(User, on_delete=CASCADE, related_name="memberships")
+    organization = ForeignKey(Organization, on_delete=CASCADE, related_name="memberships")
 
-    points = models.PositiveIntegerField()
+    points = PositiveIntegerField(default=0)
 
-class Post(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+class Post(Model):
+    organization = ForeignKey(Organization, on_delete=CASCADE)
 
-    title = models.CharField(max_length=200)
-    date = models.DateTimeField(auto_now=True)
-    content = models.TextField()
-    published = models.BooleanField(default=False)
+    title = CharField(max_length=200)
+    date = DateTimeField(auto_now=True)
+    content = TextField()
+    published = BooleanField(default=False)
 
     def __str__(self):
         return self.title
+    
 
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_auth_token(sender, instance=None, created=False, **kwargs):
-    if created:
-        Token.objects.create(user=instance)
+@receiver(post_save, sender=USER_MODEL)
+def add_required_orgs(sender, instance=None, **kwargs):
+    orgs = Organization.objects.filter(Q(required=True) | Q(required_grad_year=instance.grad_year))
+    remove_orgs = Organization.objects.exclude(required_grad_year__isnull=True)
+    remove_orgs = remove_orgs.exclude(required_grad_year=instance.grad_year)
+    instance.organizations.add(*orgs)
+    instance.organizations.remove(*remove_orgs)
+
+
+@receiver(post_save, sender=Organization)
+def add_required_users(sender, instance=None, **kwargs):
+    if instance.required:
+        users = get_user_model().objects.all()
+    elif instance.required_grad_year is not None:
+        users = get_user_model().objects.filter(grad_year=instance.required_grad_year)
+    else:
+        return
+
+    instance.user_set.add(*users)
