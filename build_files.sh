@@ -1,4 +1,5 @@
 # build_files.sh
+echo "Building files"
 pip install -r requirements.txt
 
 # make migrations

@@ -60,10 +60,24 @@ class User(AbstractUser):
 
     username = None
     email = EmailField(_("email address"), unique=True)
-    grad_year = IntegerField()
+    grad_year = IntegerField(null=True)
     organizations = ManyToManyField("Organization", through="Membership", related_name="users")
+    picture_url = URLField(
+        default="https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"
+    )
 
 class Organization(Model):
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                name="%(app_label)s_%(class)s_type",
+                check=(
+                    Q(type=OrganizationType.GLOBAL, required=True, required_grad_year__isnull=True)
+                    | Q(type=OrganizationType.CLASS, required=False, required_grad_year__isnull=False)
+                    | Q(type=OrganizationType.CLUB, required=False, required_grad_year__isnull=True)
+                ),
+            )
+        ]
     name = CharField(max_length=200)
     type = IntegerField(choices=OrganizationType.choices)
     advisors = ManyToManyField(USER_MODEL, related_name="advisor_organizations", blank=True)
@@ -75,6 +89,7 @@ class Organization(Model):
     day = IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
     time = TimeField(null=True, blank=True)
     link = URLField(null=True, blank=True)
+    ical_links = ArrayField(URLField(), blank=True, default=list)
 
     def __str__(self):
         return self.name
@@ -99,7 +114,7 @@ class Post(Model):
     
 
 @receiver(post_save, sender=USER_MODEL)
-def add_required_orgs(sender, instance=None, **kwargs):
+def add_required_orgs(*, sender, instance=None, **kwargs):
     orgs = Organization.objects.filter(Q(required=True) | Q(required_grad_year=instance.grad_year))
     remove_orgs = Organization.objects.exclude(required_grad_year__isnull=True)
     remove_orgs = remove_orgs.exclude(required_grad_year=instance.grad_year)
@@ -108,7 +123,7 @@ def add_required_orgs(sender, instance=None, **kwargs):
 
 
 @receiver(post_save, sender=Organization)
-def add_required_users(sender, instance=None, **kwargs):
+def add_required_users(*, sender, instance=None, **kwargs):
     if instance.required:
         users = get_user_model().objects.all()
     elif instance.required_grad_year is not None:
@@ -116,4 +131,4 @@ def add_required_users(sender, instance=None, **kwargs):
     else:
         return
 
-    instance.user_set.add(*users)
+    instance.users.add(*users)

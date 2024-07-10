@@ -30,7 +30,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_build', 'static')
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
@@ -130,7 +130,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "America/Los_Angeles"
 
 USE_I18N = True
 
@@ -172,11 +172,12 @@ REST_FRAMEWORK = {
     ],
 }
 
+class AllList(list):
+    def __contains__(self, o: object) -> bool:
+        return True
+
 DJOSER = {
-    "SOCIAL_AUTH_ALLOWED_REDIRECT_URIS": [
-        "http://localhost:8000",
-        "http://localhost:8000/api/auth/o/schoology/",
-    ],
+    "SOCIAL_AUTH_ALLOWED_REDIRECT_URIS": AllList(),
     "SERIALIZERS": {
         "user": "core.serializers.UserSerializer",
         "current_user": "core.serializers.UserSerializer",
@@ -191,3 +192,7 @@ SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(weeks=4)}
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

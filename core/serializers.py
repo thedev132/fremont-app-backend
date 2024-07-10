@@ -15,7 +15,7 @@ class NestedUserSerializer(serializers.ModelSerializer):
 class NestedOrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Organization
-        fields = ("id", "name")
+        fields = ("id", "name", "type")
 
 
 class NestedMembershipSerializer(serializers.ModelSerializer):
@@ -35,6 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
+            "picture_url",
             "grad_year",
             "is_staff",
             "is_superuser",
@@ -47,7 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Organization
-        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "link")
+        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "link", "ical_links")
 
     advisors = NestedUserSerializer(many=True, read_only=True)
     admins = NestedUserSerializer(many=True, read_only=True)

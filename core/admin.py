@@ -37,4 +37,4 @@ class PostAdmin(admin.ModelAdmin):
     list_display = ("title", "date", "organization", "published")
     list_filter = ("organization", "published")
     list_editable = ("published",)
-
+    ordering = ("-date",)
