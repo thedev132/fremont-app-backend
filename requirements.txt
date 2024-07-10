@@ -1,0 +1,9 @@
+# python==3.12
+Django==4.2.7
+djangorestframework==3.14.0
+Markdown==3.3.4
+django-filter==2.4.0
+# psycopg2==2.9.1
+psycopg2-binary==2.9.9
+django-stubs==1.8.0
+django-dotenv==1.4.2

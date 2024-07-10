@@ -24,7 +24,7 @@ class OrganizationType(models.IntegerChoices):
     CLUB = 3
 
 class User(AbstractUser):
-    pass
+    organizations = models.ManyToManyField("Organization", through="Membership")
 
 
 class Organization(models.Model):
@@ -33,9 +33,19 @@ class Organization(models.Model):
     advisors = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="advisor_organization_set")
     admins = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="admin_organization_set")
 
-    day = models.IntegerField(choices=DayOfWeek.choices)
-    time = models.TimeField()
-    link = models.URLField()
+    day = models.IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
+    time = models.TimeField(null=True, blank=True)
+    link = models.URLField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Membership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+    points = models.PositiveIntegerField()
 
 class Post(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
@@ -43,6 +53,10 @@ class Post(models.Model):
     title = models.CharField(max_length=200)
     date = models.DateTimeField(auto_now=True)
     content = models.TextField()
+    published = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.title
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
