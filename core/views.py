@@ -62,8 +62,6 @@ class MembershipViewSet(
     permission_classes = (NestedUserAccessPolicy,)
     queryset = models.Membership.objects.all()
     lookup_field = "organization"
-    filter_backends = (filters.OrderingFilter,)
-    ordering = ("organization__type", "organization__name")
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -85,8 +83,6 @@ class MembershipViewSet(
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.OrganizationSerializer
-    filter_backends = (filters.OrderingFilter,)
-    ordering = ("type", "name")
     def get_queryset(self):
         if "clubs" in self.request.query_params:
             # TODO: Deprecated. Remove when app is updated.
@@ -98,8 +94,6 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PostViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.PostSerializer
-    filter_backends = (filters.OrderingFilter,)
-    ordering = ("-date",)
     pagination_class = SmallPages
     def get_queryset(self):
-        return models.Post.objects.filter(organization__users=self.request.user)
+        return models.Post.objects.filter(published=True, organization__users=self.request.user)
