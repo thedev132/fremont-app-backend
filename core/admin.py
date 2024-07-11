@@ -3,60 +3,86 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext as _
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from .models import *
-import qrcode
-from datauri import DataURI
 from django.utils.safestring import mark_safe
-from qrcode.image.svg import SvgPathFillImage
-import functools
+from django.http.response import Http404, HttpResponse
 from django import forms
+import csv
+import io
 
-admin.site.site_header = "Fremont ASB"
+def with_inline_organization_permissions(get_organization=lambda x: x):
+    def deco(cls):
+        class Admin(cls):
+            def has_view_permission(self, request, obj=None):
+                if obj is None or request.user.is_superuser:
+                    return True
+                org = get_organization(obj)
+                return org.is_admin(request.user) or org.is_advisor(request.user)
 
-def with_organization_permissions(cls):
-    class Admin(cls):
-        list_filter = (AdminAdvisorListFilter,)
+            def has_change_permission(self, request, obj=None):
+                return self.has_view_permission(request, obj)
 
-        def has_module_permission(self, request):
-            return True
+            def has_add_permission(self, request, obj=None):
+                return self.has_change_permission(request, obj)
 
-        def has_add_permission(self, request):
-            return True
+            def has_delete_permission(self, request, obj=None):
+                return self.has_change_permission(request, obj)
 
-        def has_view_permission(self, request, obj=None):
-            if obj is None:
+        return Admin
+
+    return deco
+
+
+def with_organization_permissions(get_organization=lambda x: x.organization, organization_field="organization"):
+    def deco(cls):
+        class Admin(cls):
+            list_filter = (AdminAdvisorListFilter,)
+
+            def has_module_permission(self, request):
                 return True
-            return obj.organization.is_admin(request.user) or obj.organization.is_advisor(request.user)
 
-        def has_change_permission(self, request, obj=None):
-            return self.has_view_permission(request, obj)
+            def has_view_permission(self, request, obj=None):
+                if obj is None or request.user.is_superuser:
+                    return True
+                org = get_organization(obj)
+                return org.is_admin(request.user) or org.is_advisor(request.user)
 
-        def has_delete_permission(self, request, obj=None):
-            return self.has_change_permission(request, obj)
+            def has_change_permission(self, request, obj=None):
+                return self.has_view_permission(request, obj)
 
-        def get_queryset(self, request):
-            qs = super().get_queryset(request)
-            if request.user.is_superuser:
-                return qs
-            return qs.filter(
-                Q(organization__admins=request.user) | Q(organization__advisors=request.user)
-            ).distinct()
+            def has_add_permission(self, request):
+                return True
 
-        def get_form(self, request, obj=None, change=False, **kwargs):
-            if not request.user.is_superuser:
-                form_class = cls.AdminAdvisorForm
+            def has_delete_permission(self, request, obj=None):
+                return self.has_change_permission(request, obj)
 
-                class UserForm(form_class):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        q = Q(admins=request.user) | Q(advisors=request.user)
-                        self.fields["organization"].queryset = (
-                            self.fields["organization"].queryset.filter(q).distinct()
-                        )
-                kwargs["form"] = UserForm
+            def get_queryset(self, request):
+                qs = super().get_queryset(request)
+                if request.user.is_superuser:
+                    return qs
+                return qs.filter(
+                    Q(**{f"{organization_field}__admins": request.user})
+                    | Q(**{f"{organization_field}__advisors": request.user})
+                ).distinct()
 
-            return super().get_form(request, obj=obj, **kwargs)
+            def get_form(self, request, obj=None, change=False, **kwargs):
+                if not request.user.is_superuser:
+                    form_class = cls.AdminAdvisorForm
 
-    return Admin
+                    class UserForm(form_class):
+                        def __init__(self, *args, **kwargs):
+                            super().__init__(*args, **kwargs)
+                            q = Q(admins=request.user) | Q(advisors=request.user)
+                            self.fields["organization"].queryset = (
+                                self.fields["organization"].queryset.filter(q).distinct()
+                            )
+
+                    kwargs["form"] = UserForm
+
+                return super().get_form(request, obj=obj, **kwargs)
+
+        return Admin
+
+    return deco
 
 
 class AdminAdvisorListFilter(admin.SimpleListFilter):
@@ -95,15 +121,17 @@ class UserAdmin(BaseUserAdmin, DynamicArrayMixin):
         verbose_name_plural = "Admin For"
         extra = 0
 
+    class ExpoPushTokenAdmin(admin.TabularInline, DynamicArrayMixin):
+        model = ExpoPushToken
+        extra = 0
+
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        (_("Personal info"), {"fields": ("first_name", "last_name", "grad_year")}),
+        (_("Personal info"), {"fields": ("first_name", "last_name", "type", "grad_year")}),
         (_("Permissions"), {"fields": ("is_active", "is_staff", "is_superuser")}),
     )
-    add_fieldsets = (
-        (None, {"classes": ("wide",), "fields": ("email", "grad_year", "password1", "password2")}),
-    )
+    add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "grad_year", "password1", "password2")}),)
     list_display = ("email", "first_name", "last_name", "is_staff")
     list_filter = ("is_staff", "is_superuser", "grad_year")
     search_fields = ("email", "first_name", "last_name")
@@ -145,7 +173,7 @@ class OrganizationAdmin(admin.ModelAdmin, DynamicArrayMixin):
             )
 
     list_display = ("name", "type", "day", "time", "link")
-    list_filter = ("type", "day", "category")
+    list_filter = ("type", "day")
     autocomplete_fields = ("advisors", "admins")
     inlines = (InlineLinkAdmin,)
 
@@ -153,7 +181,7 @@ class OrganizationAdmin(admin.ModelAdmin, DynamicArrayMixin):
         return True
 
     def has_view_permission(self, request, obj=None):
-        if obj is None:
+        if obj is None or request.user.is_superuser:
             return True
         return obj.is_admin(request.user) or obj.is_advisor(request.user)
 
@@ -172,7 +200,7 @@ class OrganizationAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 @admin.register(Post)
-@with_organization_permissions
+@with_organization_permissions()
 class PostAdmin(admin.ModelAdmin, DynamicArrayMixin):
     class AdminAdvisorForm(forms.ModelForm):
         class Meta:

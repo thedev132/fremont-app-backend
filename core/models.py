@@ -22,6 +22,10 @@ class DayOfWeek(IntegerChoices):
     SATURDAY = 5
     SUNDAY = 6
 
+class UserType(IntegerChoices):
+    STUDENT = 1
+    STAFF = 2
+    GUEST = 3
 
 class OrganizationType(IntegerChoices):
     GLOBAL = 1
@@ -64,11 +68,12 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ["type"]
     objects = UserManager()
 
     username = None
     email = LowercaseEmailField(_("email address"), unique=True)
+    type = IntegerField(choices=UserType.choices, null=True, blank=True)
     grad_year = IntegerField(null=True, blank=True)
     organizations = ManyToManyField("Organization", through="Membership", related_name="users")
     picture_url = URLField(
@@ -80,6 +85,11 @@ class User(AbstractUser):
         if self.grad_year is None:
             return f"{self.first_name} {self.last_name} ({self.email})"
         return f"{self.first_name} {self.last_name}, {self.grad_year} ({self.email})"
+
+class ExpoPushToken(Model):
+    user = ForeignKey(User, on_delete=CASCADE, related_name="expo_push_tokens")
+    token = CharField(max_length=200, unique=True)
+
 
 class Organization(Model):
     class Meta:
@@ -99,7 +109,7 @@ class Organization(Model):
     admins = ManyToManyField(USER_MODEL, related_name="admin_organizations", blank=True)
 
     name = CharField(max_length=200)
-    description = TextField(null=True, blank=True)
+    description = TextField(blank=True)
 
     required = BooleanField(default=False)
     required_grad_year = IntegerField(null=True, blank=True)
@@ -127,9 +137,7 @@ class OrganizationLink(Model):
 class Membership(Model):
     class Meta:
         constraints = [
-            UniqueConstraint(
-                name="%(app_label)s_%(class)s_user_organization", fields=("user", "organization")
-            )
+            UniqueConstraint(name="%(app_label)s_%(class)s_user_organization", fields=("user", "organization"))
         ]
     user = ForeignKey(User, on_delete=CASCADE, related_name="memberships")
     organization = ForeignKey(Organization, on_delete=CASCADE, related_name="memberships")
@@ -151,7 +159,7 @@ class Post(Model):
     
 
 @receiver(post_save, sender=USER_MODEL)
-def add_required_orgs(*, sender, instance=None, **kwargs):
+def add_required_orgs(*, instance=None, **kwargs):
     q = Q(required=True) | Q(required_grad_year__isnull=False, required_grad_year=instance.grad_year)
     orgs = Organization.objects.filter(q)
     instance.organizations.add(*orgs)
@@ -162,7 +170,7 @@ def add_required_orgs(*, sender, instance=None, **kwargs):
 
 
 @receiver(post_save, sender=Organization)
-def add_required_users(*, sender, instance=None, **kwargs):
+def add_required_users(*, instance=None, **kwargs):
     if instance.required:
         users = get_user_model().objects.all()
     elif instance.required_grad_year is not None:

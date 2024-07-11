@@ -11,7 +11,7 @@ from . import models, serializers
 
 
 class IndexView(TemplateView):
-    template_name = "index.html"
+    template_name = "core/index.html"
 class SmallPages(pagination.PageNumberPagination):
     page_size = 20
 
@@ -37,7 +37,7 @@ class NestedUserViewSetMixin(NestedViewSetMixin):
         return get_user_model().objects.get(pk=user_id)
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+class UserViewSet(viewsets.ReadOnlyModelViewSet, mixins.UpdateModelMixin):
     permission_classes = (UserAccessPolicy,)
     serializer_class = serializers.UserSerializer
 
@@ -54,6 +54,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             return self.access_policy.scope_queryset(self.request, qs)
         else:
             return qs
+        
+
+class ExpoPushTokenViewSet(
+    NestedUserViewSetMixin, viewsets.GenericViewSet, mixins.ListModelMixin, mixins.CreateModelMixin
+):
+    permission_classes = (NestedUserAccessPolicy,)
+    queryset = models.ExpoPushToken.objects.all()
+    serializer_class = serializers.ExpoPushTokenSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.get_user())
 
 
 class MembershipViewSet(
@@ -97,3 +108,9 @@ class PostViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = SmallPages
     def get_queryset(self):
         return models.Post.objects.filter(published=True, organization__users=self.request.user)
+
+class AppVersionView(views.APIView):
+    permission_classes = ()
+    
+    def get(self, r):
+        return Response({"android": 1, "ios": "1.0"})

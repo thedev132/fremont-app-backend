@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-
+from django.db import transaction
 from .models import Organization, Post
 from . import models
 
@@ -9,7 +9,7 @@ from . import models
 class NestedUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ("id", "first_name", "last_name")
+        fields = ("id", "first_name", "last_name", "type")
 
 
 class NestedOrganizationSerializer(serializers.ModelSerializer):
@@ -35,12 +35,19 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
+            "type",
             "picture_url",
             "grad_year",
             "is_staff",
             "is_superuser",
             "memberships",
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name != "grad_year":
+                field.read_only = True
 
     memberships = NestedMembershipSerializer(many=True, read_only=True)
 
@@ -73,6 +80,17 @@ class CreateMembershipSerializer(serializers.ModelSerializer):
         fields = ("organization", "points")
 
     points = serializers.IntegerField(read_only=True)
+
+
+class ExpoPushTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExpoPushToken
+        fields = ("token",)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        obj, _ = self.Meta.model.objects.get_or_create(**validated_data)
+        return obj
 
 
 class PostSerializer(serializers.ModelSerializer):

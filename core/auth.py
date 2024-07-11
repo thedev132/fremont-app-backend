@@ -2,8 +2,27 @@ from requests import ConnectionError, request
 from social_core.backends.oauth import BaseOAuth1
 from social_core.exceptions import AuthFailed
 from social_core.utils import SSLHttpAdapter, user_agent
+from social_core.backends.google import GoogleOAuth2
+from core.models import UserType
+
 API_BASE_URL = "https://api.schoology.com/v1"
 SCHOOLOGY_URL = "https://fuhsd.schoology.com"
+
+class GoogleOAuth(GoogleOAuth2):
+    name = "google"
+
+    def get_user_details(self, data):
+        print(data)
+        return {
+            **super().get_user_details(data),
+            "type": UserType.STUDENT if data["hd"] == "student.fuhsd.org" else UserType.STAFF,
+            "picture_url": data["picture"],
+        }
+    def auth_url(self):
+        return super().auth_url() + "&hd=student.fuhsd.org"
+
+
+
 class SchoologyOAuth(BaseOAuth1):
     """Schoology OAuth authentication backend"""
     name = "schoology"
@@ -12,6 +31,7 @@ class SchoologyOAuth(BaseOAuth1):
     REQUEST_TOKEN_URL = f"{API_BASE_URL}/oauth/request_token"
     ACCESS_TOKEN_URL = f"{API_BASE_URL}/oauth/access_token"
     REDIRECT_URI_PARAMETER_NAME = "oauth_callback"
+    USER_DATA_URL = f"{API_BASE_URL}/users/me"
     EXTRA_DATA = [
         ("id", "id"),
         ("school_id", "school_id"),
@@ -28,7 +48,8 @@ class SchoologyOAuth(BaseOAuth1):
             "email": data["primary_email"],
             "first_name": data["name_first_preferred"] or data["name_first"],
             "last_name": data["name_last"],
-            "grad_year": int(data["grad_year"] or 0),
+            "type": UserType.STAFF if data["grad_year"] != "" else UserType.STUDENT,
+            "grad_year": int(s) if (s := data["grad_year"]) else None,
             "picture_url": data["picture_url"],
         }
 
