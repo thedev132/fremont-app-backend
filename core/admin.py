@@ -122,7 +122,10 @@ class UserAdmin(BaseUserAdmin, DynamicArrayMixin):
     list_filter = ("is_staff", "is_superuser", "grad_year")
     search_fields = ("email", "first_name", "last_name")
     ordering = None
-    inlines = (AdvisorOrganizationAdmin, AdminOrganizationAdmin)
+    inlines = (AdvisorOrganizationAdmin, AdminOrganizationAdmin, MembershipAdmin, ExpoPushTokenAdmin)
+
+    def has_view_permission(self, request, obj=None):
+        return True
 
 
 @admin.register(Organization)
@@ -154,11 +157,10 @@ class OrganizationAdmin(admin.ModelAdmin, DynamicArrayMixin):
                 "category",
                 "day",
                 "time",
-                "link",
-                "ical_links",
+                "location",
             )
 
-    list_display = ("name", "type", "day", "time", "link")
+    list_display = ("name", "type", "day", "time", "location")
     list_filter = ("type", "day")
     autocomplete_fields = ("advisors", "admins")
     inlines = (InlineLinkAdmin,)
@@ -201,3 +203,8 @@ class PostAdmin(admin.ModelAdmin, DynamicArrayMixin):
     list_display = ("title", "date", "organization", "published")
     list_filter = ("organization", "published")
     list_editable = ("published",)
+
+@admin.register(ExpoPushToken)
+class ExpoPushTokenAdmin(admin.ModelAdmin):
+    list_display = ("user", "token")
+    search_fields = ("user__first_name", "user__last_name", "token")

@@ -1,6 +1,6 @@
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.auth import get_user_model
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from django.db.models import *
 from django.utils.translation import gettext as _
+from core.notifications import send_notifications
 
 USER_MODEL = settings.AUTH_USER_MODEL
 
@@ -115,9 +116,8 @@ class Organization(Model):
     required_grad_year = IntegerField(null=True, blank=True)
 
     day = IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
-    time = TimeField(null=True, blank=True)
-    link = URLField(null=True, blank=True)
-    ical_links = ArrayField(URLField(), blank=True, default=list)
+    location = CharField(max_length=200, null=True, blank=True)
+    time = CharField(max_length=200, null=True, blank=True)
 
     def is_admin(self, user):
         return self.admins.filter(id=user.id).exists()
@@ -167,6 +167,26 @@ def add_required_orgs(*, instance=None, **kwargs):
     remove_orgs = remove_orgs.exclude(required_grad_year=instance.grad_year)
     instance.organizations.add(*orgs)
     instance.organizations.remove(*remove_orgs)
+
+@receiver(pre_save, sender=Post)
+def before_send_post_notifications(*, instance, **kwargs):
+    try:
+        instance._pre_save_instance = Post.objects.get(pk=instance.pk)
+    except Post.DoesNotExist:
+        instance._pre_save_instance = None
+
+
+@receiver(post_save, sender=Post)
+def send_post_notifications(*, instance, created, **kwargs):
+    if instance._pre_save_instance and instance._pre_save_instance.published:
+        return
+    if not instance.published:
+        return
+
+    tokens = instance.organization.memberships.values("user__expo_push_tokens__token")
+    tokens = [token for x in tokens if (token := x["user__expo_push_tokens__token"])]
+
+    send_notifications(tokens, instance.title, instance.content[:300])
 
 
 @receiver(post_save, sender=Organization)
