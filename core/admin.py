@@ -35,26 +35,17 @@ def with_inline_organization_permissions(get_organization=lambda x: x):
 def with_organization_permissions(get_organization=lambda x: x.organization, organization_field="organization"):
     def deco(cls):
         class Admin(cls):
-            list_filter = (AdminAdvisorListFilter,)
-
             def has_module_permission(self, request):
                 return True
-
             def has_view_permission(self, request, obj=None):
                 if obj is None or request.user.is_superuser:
                     return True
                 org = get_organization(obj)
                 return org.is_admin(request.user) or org.is_advisor(request.user)
-
             def has_change_permission(self, request, obj=None):
                 return self.has_view_permission(request, obj)
-
-            def has_add_permission(self, request):
-                return True
-
             def has_delete_permission(self, request, obj=None):
                 return self.has_change_permission(request, obj)
-
             def get_queryset(self, request):
                 qs = super().get_queryset(request)
                 if request.user.is_superuser:
@@ -63,11 +54,9 @@ def with_organization_permissions(get_organization=lambda x: x.organization, org
                     Q(**{f"{organization_field}__admins": request.user})
                     | Q(**{f"{organization_field}__advisors": request.user})
                 ).distinct()
-
             def get_form(self, request, obj=None, change=False, **kwargs):
                 if not request.user.is_superuser:
                     form_class = cls.AdminAdvisorForm
-
                     class UserForm(form_class):
                         def __init__(self, *args, **kwargs):
                             super().__init__(*args, **kwargs)
@@ -75,14 +64,11 @@ def with_organization_permissions(get_organization=lambda x: x.organization, org
                             self.fields["organization"].queryset = (
                                 self.fields["organization"].queryset.filter(q).distinct()
                             )
-
                     kwargs["form"] = UserForm
-
                 return super().get_form(request, obj=obj, **kwargs)
-
         return Admin
-
     return deco
+
 
 
 class AdminAdvisorListFilter(admin.SimpleListFilter):
