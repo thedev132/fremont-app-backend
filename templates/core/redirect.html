@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+        var redirectToApp = function() {
+            // Extract the parameters from the current URL
+            var params = new URLSearchParams(window.location.search);
+            
+            // Construct the custom URI scheme URL with the parameters
+            var customSchemeUrl = 'fhs://login';
+            if (params.toString()) {
+                customSchemeUrl += '?' + params.toString();
+            }
+
+            // Log for debugging
+            console.log('Redirecting to:', customSchemeUrl);
+
+            // Set a timeout to redirect to a fallback URL if the app is not installed
+            setTimeout(function appNotInstalled() {
+                window.location.replace("http://google.com?q=" + params.toString());
+            }, 100);
+
+            // Redirect to the custom scheme URL
+            window.location.replace(customSchemeUrl);
+        };
+        window.onload = redirectToApp;
+    </script>
+</head>
+<body></body>
+</html>

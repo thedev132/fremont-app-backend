@@ -12,6 +12,9 @@ from . import models, serializers
 
 class IndexView(TemplateView):
     template_name = "core/index.html"
+
+class RedirectView(TemplateView):
+    template_name = "core/redirect.html"
 class SmallPages(pagination.PageNumberPagination):
     page_size = 20
 

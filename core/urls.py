@@ -16,4 +16,5 @@ urlpatterns = [
     path("api/", include(router.urls)),
     path("api/app_version/", views.AppVersionView.as_view()),
     path("", views.IndexView.as_view()),
+    path("redirect/", views.RedirectView.as_view()),
 ]

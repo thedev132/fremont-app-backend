@@ -1,47 +1,43 @@
 from requests import ConnectionError, request
+from social_core.backends.google import GoogleOAuth2
 from social_core.backends.oauth import BaseOAuth1
 from social_core.exceptions import AuthFailed
 from social_core.utils import SSLHttpAdapter, user_agent
-from social_core.backends.google import GoogleOAuth2
+
 from core.models import UserType
 
 API_BASE_URL = "https://api.schoology.com/v1"
 SCHOOLOGY_URL = "https://fuhsd.schoology.com"
 
+
 class GoogleOAuth(GoogleOAuth2):
     name = "google"
 
     def get_user_details(self, data):
-        print(data)
         return {
             **super().get_user_details(data),
             "type": UserType.STUDENT if data["hd"] == "student.fuhsd.org" else UserType.STAFF,
             "picture_url": data["picture"],
         }
+
     def auth_url(self):
         return super().auth_url() + "&hd=student.fuhsd.org"
 
 
-
 class SchoologyOAuth(BaseOAuth1):
-    """Schoology OAuth authentication backend"""
     name = "schoology"
     ID_KEY = "uid"
     AUTHORIZATION_URL = f"{SCHOOLOGY_URL}/oauth/authorize"
     REQUEST_TOKEN_URL = f"{API_BASE_URL}/oauth/request_token"
     ACCESS_TOKEN_URL = f"{API_BASE_URL}/oauth/access_token"
-    REDIRECT_URI_PARAMETER_NAME = "oauth_callback"
     USER_DATA_URL = f"{API_BASE_URL}/users/me"
+    REDIRECT_URI_PARAMETER_NAME = "oauth_callback"
     EXTRA_DATA = [
         ("id", "id"),
         ("school_id", "school_id"),
         ("building_id", "building_id"),
         ("username", "username"),
-        ("grad_year", "grad_year"),
     ]
-
-    USER_DATA_URL = f"{API_BASE_URL}/users/me"
-    COURSE_DATA_URL = f"{API_BASE_URL}/users/{{id}}/sections"
 
     def get_user_details(self, data):
         return {
@@ -55,18 +51,19 @@ class SchoologyOAuth(BaseOAuth1):
 
     def user_data(self, access_token, *args, **kwargs):
         user = self.oauth_request(access_token, self.USER_DATA_URL).json()
-        # courses = self.oauth_request(access_token, self.COURSE_DATA_URL.format_map(user)).json()
         return user
-    
+
     def request(self, url, method="GET", *args, **kwargs):
         kwargs.setdefault("headers", {})
         if self.setting("PROXIES") is not None:
             kwargs.setdefault("proxies", self.setting("PROXIES"))
+
         if self.setting("VERIFY_SSL") is not None:
             kwargs.setdefault("verify", self.setting("VERIFY_SSL"))
         kwargs.setdefault("timeout", self.setting("REQUESTS_TIMEOUT") or self.setting("URLOPEN_TIMEOUT"))
         if self.SEND_USER_AGENT and "User-Agent" not in kwargs["headers"]:
             kwargs["headers"]["User-Agent"] = self.setting("USER_AGENT") or user_agent()
+
         try:
             response = None
             while response is None or response.status_code == 303:

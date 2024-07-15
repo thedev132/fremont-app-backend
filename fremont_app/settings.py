@@ -34,7 +34,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
-
+BASE_URL = os.environ["BASE_URL"]
 # Application definition
 
 INSTALLED_APPS = [
@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework_simplejwt',
     "social_django",
     'rest_framework',
     "corsheaders",
@@ -53,10 +54,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
+    'social_django.middleware.SocialAuthExceptionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -68,15 +69,15 @@ ROOT_URLCONF = 'fremont_app.urls'
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
@@ -142,57 +143,59 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
+# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# User model
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom things
 
 AUTH_USER_MODEL = "core.User"
 SOCIAL_AUTH_USER_MODEL = AUTH_USER_MODEL
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
+    "core.auth.SchoologyOAuth",
     "core.auth.GoogleOAuth",
-    # "allauth.account.auth_backends.AuthenticationBackend",
 ]
-
-# Django Rest Framework
-# https://www.django-rest-framework.org/
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
+
 class AllList(list):
     def __contains__(self, o: object) -> bool:
         return True
 
+
 DJOSER = {
+    "USER_CREATE_PASSWORD_RETYPE": True,
     "SOCIAL_AUTH_ALLOWED_REDIRECT_URIS": AllList(),
     "SERIALIZERS": {
         "user": "core.serializers.UserSerializer",
         "current_user": "core.serializers.UserSerializer",
     },
 }
-SOCIAL_AUTH_GOOGLE_WHITELISTED_DOMAINS = ["fuhsd.org", "student.fuhsd.org"]
-SOCIAL_AUTH_USER_FIELDS = ["email"]
-SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 
+SOCIAL_AUTH_GOOGLE_WHITELISTED_DOMAINS = ["fuhsd.org", "student.fuhsd.org"]
+SOCIAL_AUTH_USER_FIELDS = ["email", "type"]
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 SOCIAL_AUTH_GOOGLE_KEY = os.environ["GOOGLE_API_KEY"]
 SOCIAL_AUTH_GOOGLE_SECRET = os.environ["GOOGLE_API_SECRET"]
+SOCIAL_AUTH_RAISE_EXCEPTIONS = False
+
 
 SOCIAL_AUTH_SCHOOLOGY_KEY = os.environ.get("SOCIAL_AUTH_SCHOOLOGY_KEY")
 SOCIAL_AUTH_SCHOOLOGY_SECRET = os.environ.get("SOCIAL_AUTH_SCHOOLOGY_SECRET")
 SOCIAL_AUTH_USER_FIELDS = ["email", "type"]
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(weeks=4)}
 
