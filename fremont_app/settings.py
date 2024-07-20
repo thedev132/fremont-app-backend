@@ -34,7 +34,6 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
-BASE_URL = os.environ["BASE_URL"]
 # Application definition
 
 INSTALLED_APPS = [
@@ -166,6 +165,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50
 }
 
 
@@ -188,22 +189,16 @@ SOCIAL_AUTH_USER_FIELDS = ["email", "type"]
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 SOCIAL_AUTH_GOOGLE_KEY = os.environ["GOOGLE_API_KEY"]
 SOCIAL_AUTH_GOOGLE_SECRET = os.environ["GOOGLE_API_SECRET"]
-SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 
-
-SOCIAL_AUTH_SCHOOLOGY_KEY = os.environ.get("SOCIAL_AUTH_SCHOOLOGY_KEY")
-SOCIAL_AUTH_SCHOOLOGY_SECRET = os.environ.get("SOCIAL_AUTH_SCHOOLOGY_SECRET")
 SOCIAL_AUTH_USER_FIELDS = ["email", "type"]
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
-SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(weeks=4)}
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(weeks=16)}
 
 CORS_ALLOW_ALL_ORIGINS = True
 
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 LOGIN_REDIRECT_URL = "/admin/"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 

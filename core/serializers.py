@@ -17,7 +17,6 @@ class NestedOrganizationSerializer(serializers.ModelSerializer):
         model = models.Organization
         fields = ("id", "name", "type")
 
-
 class NestedMembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Membership
@@ -56,10 +55,11 @@ class OrganizationLinkSerializer(serializers.ModelSerializer):
         model = models.OrganizationLink
         fields = ("title", "url")
 
+
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Organization
-        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "location" "description")
+        fields = ("id", "url", "name", "type", "advisors", "admins", "day", "time", "location", "description",)
 
     advisors = NestedUserSerializer(many=True, read_only=True)
     admins = NestedUserSerializer(many=True, read_only=True)

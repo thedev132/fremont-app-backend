@@ -97,15 +97,17 @@ class MembershipViewSet(
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.OrganizationSerializer
+
     def get_queryset(self):
         if "clubs" in self.request.query_params:
             # TODO: Deprecated. Remove when app is updated.
             return models.Organization.objects.filter(type=3)
+
         if "user" in self.request.query_params:
             # TODO: Deprecated. Remove when app is updated.
             return models.Organization.objects.filter(users=self.request.user)
-        return models.Organization.objects.all()
 
+        return models.Organization.objects.all()
 class PostViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.PostSerializer
     pagination_class = SmallPages

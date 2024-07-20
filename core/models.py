@@ -99,9 +99,21 @@ class Organization(Model):
             CheckConstraint(
                 name="%(app_label)s_%(class)s_type",
                 check=(
-                    Q(type=OrganizationType.GLOBAL, required=True, required_grad_year__isnull=True)
-                    | Q(type=OrganizationType.CLASS, required=False, required_grad_year__isnull=False)
-                    | Q(type=OrganizationType.CLUB, required=False, required_grad_year__isnull=True)
+                    Q(
+                        type=OrganizationType.GLOBAL,
+                        required=True,
+                        required_grad_year__isnull=True,
+                    )
+                    | Q(
+                        type=OrganizationType.CLASS,
+                        required=False,
+                        required_grad_year__isnull=False,
+                    )
+                    | Q(
+                        type=OrganizationType.CLUB,
+                        required=False,
+                        required_grad_year__isnull=True,
+                    )
                 ),
             )
         ]
@@ -109,11 +121,11 @@ class Organization(Model):
     advisors = ManyToManyField(USER_MODEL, related_name="advisor_organizations", blank=True)
     admins = ManyToManyField(USER_MODEL, related_name="admin_organizations", blank=True)
 
-    name = CharField(max_length=200)
-    description = TextField(blank=True)
-
     required = BooleanField(default=False)
     required_grad_year = IntegerField(null=True, blank=True)
+
+    name = CharField(max_length=200)
+    description = TextField(blank=True)
 
     day = IntegerField(choices=DayOfWeek.choices, null=True, blank=True)
     location = CharField(max_length=200, null=True, blank=True)
