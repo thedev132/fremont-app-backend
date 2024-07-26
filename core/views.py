@@ -74,7 +74,7 @@ class MembershipViewSet(
     NestedUserViewSetMixin, viewsets.ReadOnlyModelViewSet, mixins.CreateModelMixin, mixins.DestroyModelMixin
 ):
     permission_classes = (NestedUserAccessPolicy,)
-    queryset = models.Membership.objects.filter(active=True)
+    queryset = models.Membership.objects.all()
     lookup_field = "organization"
 
     def get_serializer_class(self):
@@ -86,8 +86,7 @@ class MembershipViewSet(
         serializer.save(user=self.get_user())
 
     def perform_destroy(self, instance):
-        instance.active = False
-        instance.save()
+        instance.delete()
 
     def handle_exception(self, exc):
         if isinstance(exc, IntegrityError):
@@ -108,6 +107,7 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
             return models.Organization.objects.filter(users=self.request.user)
 
         return models.Organization.objects.all()
+    
 class PostViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.PostSerializer
     pagination_class = SmallPages
