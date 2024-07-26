@@ -20,7 +20,7 @@ class NestedOrganizationSerializer(serializers.ModelSerializer):
 class NestedMembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Membership
-        fields = ("organization", "points")
+        fields = ("organization",)
 
     organization = NestedOrganizationSerializer(read_only=True)
 
@@ -67,18 +67,15 @@ class OrganizationSerializer(serializers.ModelSerializer):
 class MembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Membership
-        fields = ("organization", "points")
+        fields = ("organization",)
 
     organization = OrganizationSerializer(read_only=True)
-    points = serializers.IntegerField(read_only=True)
 
 
 class CreateMembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Membership
-        fields = ("organization", "points")
-
-    points = serializers.IntegerField(read_only=True)
+        fields = ("organization",)
 
 
 class ExpoPushTokenSerializer(serializers.ModelSerializer):

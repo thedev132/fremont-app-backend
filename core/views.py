@@ -74,7 +74,7 @@ class MembershipViewSet(
     NestedUserViewSetMixin, viewsets.ReadOnlyModelViewSet, mixins.CreateModelMixin, mixins.DestroyModelMixin
 ):
     permission_classes = (NestedUserAccessPolicy,)
-    queryset = models.Membership.objects.all()
+    queryset = models.Membership.objects.filter(active=True)
     lookup_field = "organization"
 
     def get_serializer_class(self):
