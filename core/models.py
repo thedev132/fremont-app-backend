@@ -196,7 +196,7 @@ def send_post_notifications(*, instance, created, **kwargs):
     tokens = instance.organization.memberships.values("user__expo_push_tokens__token")
     tokens = [token for x in tokens if (token := x["user__expo_push_tokens__token"])]
 
-    send_notifications(tokens, instance.title, instance.content[:300])
+    send_notifications(tokens, instance.title, instance.content[:300], instance.id)
 
 
 @receiver(post_save, sender=Organization)
