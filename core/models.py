@@ -10,6 +10,7 @@ from django.core.validators import MinValueValidator
 from django.db.models import *
 from django.utils.translation import gettext as _
 from core.notifications import send_notifications
+from datetime import datetime
 
 USER_MODEL = settings.AUTH_USER_MODEL
 
@@ -193,10 +194,11 @@ def send_post_notifications(*, instance, created, **kwargs):
     if not instance.published:
         return
 
+    date = datetime.now().strftime("%Y-%m-%d")
     tokens = instance.organization.memberships.values("user__expo_push_tokens__token")
     tokens = [token for x in tokens if (token := x["user__expo_push_tokens__token"])]
 
-    send_notifications(tokens, instance.title, instance.content[:300], instance.id)
+    send_notifications(tokens, instance.title, instance.content[:300], instance.id, date, instance.organization.name)
 
 
 @receiver(post_save, sender=Organization)
